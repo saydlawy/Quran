@@ -8,7 +8,7 @@ object ArabicSearchNormalizer {
     fun normalize(input: String): String = Normalizer.normalize(input, Normalizer.Form.NFKC)
         .replace(tashkeel, "")
         .replace('أ','ا').replace('إ','ا').replace('آ','ا')
-        .replace('ى','ي').replace('ة','ه').replace('ـ','')
+        .replace('ى','ي').replace('ة','ه').replace("ـ", "")
         .lowercase(Locale.ROOT).trim()
 }
 
