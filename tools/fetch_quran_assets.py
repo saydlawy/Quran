@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS=os.path.join(ROOT,"app","src","main","assets","quran")
 DATA=os.path.join(ASSETS,"data"); FONTS=os.path.join(ASSETS,"fonts","qcf","v2")
-API="https://api.quran.com/api/v4"; FONT="https://static.qurancdn.com/fonts/quran/hafs/v2/ttf"
+API="https://api.quran.com/api/v4"; FONT="https://verses.quran.foundation/fonts/quran/hafs/v2/ttf"
 PAGES=604; WORKERS=10
 os.makedirs(DATA,exist_ok=True); os.makedirs(FONTS,exist_ok=True)
 
