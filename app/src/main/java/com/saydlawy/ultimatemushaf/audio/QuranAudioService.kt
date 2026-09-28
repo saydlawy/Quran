@@ -142,12 +142,7 @@ class QuranAudioService : MediaSessionService() {
 
         player.setMediaItem(item, saved.positionMs)
         player.prepare()
-
-        // Do not unexpectedly start audio merely because the service was recreated.
-        // Explicit system playback-resumption can start it later.
-        if (saved.playing) {
-            player.pause()
-        }
+        if (saved.playing) player.play()
     }
 
     fun playVerse(verseKey: String, url: String) {
@@ -167,6 +162,32 @@ class QuranAudioService : MediaSessionService() {
         player.prepare()
         player.play()
         persist()
+    }
+
+    fun playQueue(items: List<AudioSegment>, urls: List<String>, startIndex: Int = 0) {
+        require(items.size == urls.size)
+        val mediaItems = items.mapIndexed { index, segment ->
+            MediaItem.Builder()
+                .setMediaId(segment.verseKey)
+                .setUri(urls[index])
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle("القرآن الكريم • " + segment.verseKey)
+                        .setArtist("Ultimate Mushaf")
+                        .build()
+                )
+                .build()
+        }
+        if (mediaItems.isEmpty()) return
+        _playbackState.value = AudioPlaybackState.PREPARING
+        player.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
+        player.prepare()
+        player.play()
+        persist()
+    }
+
+    fun setGaplessQueue(enabled: Boolean) {
+        player.skipSilenceEnabled = !enabled
     }
 
     fun seekTo(positionMs: Long) = player.seekTo(positionMs.coerceAtLeast(0L))
