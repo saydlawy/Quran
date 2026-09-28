@@ -28,6 +28,7 @@ jobs:
           assert len(data["pages"]) == 604
           assert set(map(int,data["pages"].keys())) == set(range(1,605))
           assert len(data["verses"]) == 6236
+          assert os.path.getsize(f"{root}/fonts/uthmanic/UthmanicHafs1Ver18.ttf") > 1000
           for p in range(1,605):
               font=f"{root}/fonts/qcf/v2/p{p}.ttf"
               assert os.path.getsize(font) > 1000, font
@@ -53,6 +54,7 @@ jobs:
           assert apks
           with zipfile.ZipFile(apks[0]) as z:
               names=set(z.namelist())
+              assert any(n.endswith("assets/quran/fonts/uthmanic/UthmanicHafs1Ver18.ttf") for n in names)
               for p in range(1,605):
                   suffix=f"assets/quran/fonts/qcf/v2/p{p}.ttf"
                   assert any(n.endswith(suffix) for n in names), suffix
