@@ -1,0 +1,1 @@
+Generated at CI build time. QCF V2 page fonts and canonical Mushaf data are not manually committed.

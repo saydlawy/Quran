@@ -12,7 +12,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
     }
 
     buildFeatures { compose = true }
@@ -23,6 +23,28 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+
+    signingConfigs {
+        create("release") {
+            val store = System.getenv("ULTIMATE_KEYSTORE")
+            val password = System.getenv("ULTIMATE_KEYSTORE_PASSWORD")
+            val alias = System.getenv("ULTIMATE_KEY_ALIAS")
+            val keyPassword = System.getenv("ULTIMATE_KEY_PASSWORD")
+            if (!store.isNullOrBlank() && !password.isNullOrBlank() && !alias.isNullOrBlank() && !keyPassword.isNullOrBlank()) {
+                storeFile = file(store)
+                storePassword = password
+                keyAlias = alias
+                this.keyPassword = keyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
+        }
+    }
 }
 
 dependencies {
@@ -30,6 +52,8 @@ dependencies {
     implementation(composeBom)
     androidTestImplementation(composeBom)
     implementation("androidx.activity:activity-compose:1.10.0")
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-session:1.5.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")

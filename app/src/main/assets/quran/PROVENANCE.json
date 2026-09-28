@@ -1,0 +1,19 @@
+{
+  "product": "Ultimate Mushaf",
+  "mushaf": {
+    "provider": "Quran Foundation",
+    "mushaf_id": 1,
+    "edition": "Madani 604-page",
+    "rendering": "QCF V2 page-specific fonts and positioned words"
+  },
+  "canonical_data": {
+    "verses": 6236,
+    "pages": 604
+  },
+  "rules": [
+    "Canonical Quran text is never generated or rewritten by AI.",
+    "Client secrets are never embedded in the Android application.",
+    "Online content is optional; the core reader remains usable offline.",
+    "Bundled fonts/assets must be distributed only under the applicable Quran Foundation developer terms."
+  ]
+}

@@ -1,17 +1,47 @@
-name: Android Build
+name: Ultimate Mushaf Production
 
 on:
   push:
-    branches: ["**"]
+    branches: ["ultimate-mushaf-production-core"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-release:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: write
+    env:
+      ULTIMATE_KEYSTORE: ${{ github.workspace }}/ultimate-release.jks
+      ULTIMATE_KEYSTORE_PASSWORD: ultimate-mushaf-ci
+      ULTIMATE_KEY_ALIAS: ultimate
+      ULTIMATE_KEY_PASSWORD: ultimate-mushaf-ci
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate canonical QCF V2 offline assets
+        run: python3 tools/fetch_quran_assets.py
+      - name: Validate canonical Quran assets
+        run: |
+          python3 - <<'PY'
+          import json, hashlib, os
+          root="app/src/main/assets/quran"
+          data=json.load(open(root+"/data/quran_qcf_v2.json",encoding="utf-8"))
+          assert data["mushaf_id"] == 1
+          assert len(data["pages"]) == 604
+          assert set(map(int,data["pages"].keys())) == set(range(1,605))
+          assert len(data["verses"]) == 6236
+          assert os.path.getsize(root+"/fonts/uthmanic/UthmanicHafs1Ver18.ttf") > 1000
+          for p in range(1,605):
+              assert os.path.getsize(f"{root}/fonts/qcf/v2/p{p}.ttf") > 1000
+              assert all(1 <= int(k) <= 15 for k in data["pages"][str(p)]["lines"])
+          sha=hashlib.sha256(open(root+"/data/quran_qcf_v2.json","rb").read()).hexdigest()
+          assert json.load(open(root+"/MANIFEST.json"))["data_sha256"] == sha
+          print("Canonical Quran asset validation PASS:", sha)
+          PY
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -19,10 +49,35 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
-      - name: Build debug APK
-        run: gradle --no-daemon :app:assembleDebug
-      - name: Upload APK
+      - name: Generate CI release signing key
+        run: |
+          keytool -genkeypair -v -keystore "$ULTIMATE_KEYSTORE" -storepass "$ULTIMATE_KEYSTORE_PASSWORD" -keypass "$ULTIMATE_KEY_PASSWORD" -alias "$ULTIMATE_KEY_ALIAS" -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Ultimate Mushaf, OU=Saydlawy, O=Saydlawy, L=Kuwait, C=KW"
+      - name: Compile and test
+        run: gradle --no-daemon :app:test :app:assembleDebug
+      - name: Build signed Ultimate release APK
+        run: gradle --no-daemon :app:assembleRelease
+      - name: Verify final APK
+        run: |
+          python3 - <<'PY'
+          import glob, zipfile, hashlib, os
+          apks=glob.glob("app/build/outputs/apk/release/*.apk")
+          assert len(apks) == 1, apks
+          apk=apks[0]
+          assert os.path.getsize(apk) > 1000000
+          with zipfile.ZipFile(apk) as z:
+              names=set(z.namelist())
+              assert any(n.endswith("assets/quran/data/quran_qcf_v2.json") for n in names)
+              assert any(n.endswith("assets/quran/fonts/uthmanic/UthmanicHafs1Ver18.ttf") for n in names)
+              for p in range(1,605):
+                  assert any(n.endswith(f"assets/quran/fonts/qcf/v2/p{p}.ttf") for n in names)
+          digest=hashlib.sha256(open(apk,"rb").read()).hexdigest()
+          print("FINAL APK:", apk)
+          print("SHA256:", digest)
+          PY
+      - name: Upload FINAL Ultimate Mushaf APK
         uses: actions/upload-artifact@v4
         with:
-          name: ultimate-mushaf-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: ultimate-mushaf-final-${{ github.sha }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
