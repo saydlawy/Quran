@@ -1,10 +1,12 @@
 package com.saydlawy.ultimatemushaf.mushaf
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -19,26 +21,48 @@ class QcfMushafCanvas @JvmOverloads constructor(
     }
 
     private var pageNumber = 1
+    private var previousPage = 1
     private var dark = false
     private var page = repo.page(1)
+    private var oldPage = page
+    private var turnProgress = 1f
+    private var turnDirection = 0
     private var downX = 0f
     private var listener: ((Int) -> Unit)? = null
+    private var animator: ValueAnimator? = null
 
     fun setPageChangedListener(l: (Int) -> Unit) { listener = l }
     fun setDark(value: Boolean) { dark = value; invalidate() }
+
     fun setPage(value: Int) {
-        pageNumber = value.coerceIn(1, 604)
-        page = repo.page(pageNumber)
-        invalidate()
+        val target = value.coerceIn(1, 604)
+        if (target == pageNumber && turnProgress >= 1f) return
+        previousPage = pageNumber
+        oldPage = page
+        pageNumber = target
+        page = repo.page(target)
+        turnDirection = if (target > previousPage) -1 else 1
+        animateTurn()
     }
+
     fun page() = pageNumber
+
+    private fun animateTurn() {
+        animator?.cancel()
+        animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 280L
+            interpolator = DecelerateInterpolator()
+            addUpdateListener {
+                turnProgress = it.animatedValue as Float
+                invalidate()
+            }
+            start()
+        }
+    }
 
     override fun onDraw(canvas: Canvas) {
         val width = width.toFloat()
         val height = height.toFloat()
-        val paper = if (dark) Color.rgb(29, 27, 23) else Color.rgb(247, 241, 222)
-        val ink = if (dark) Color.rgb(239, 232, 211) else Color.rgb(30, 28, 24)
-
         canvas.drawColor(if (dark) Color.rgb(12, 12, 11) else Color.rgb(225, 219, 204))
 
         val pageWidth = minOf(width * 0.94f, height * 0.705f)
@@ -47,10 +71,46 @@ class QcfMushafCanvas @JvmOverloads constructor(
         val top = (height - pageHeight) / 2f
         val rect = RectF(left, top, left + pageWidth, top + pageHeight)
 
+        if (turnProgress >= 1f || previousPage == pageNumber) {
+            drawPage(canvas, page, pageNumber, rect)
+            return
+        }
+
+        val pivot = if (turnDirection < 0) rect.left else rect.right
+        val fold = rect.width() * turnProgress
+        canvas.save()
+        val oldScale = 1f - 0.055f * turnProgress
+        canvas.scale(oldScale, 1f, pivot, rect.centerY())
+        drawPage(canvas, oldPage, previousPage, rect)
+        canvas.restore()
+
+        val reveal = if (turnDirection < 0) rect.right - fold else rect.left + fold
+        canvas.save()
+        if (turnDirection < 0) canvas.clipRect(reveal, rect.top, rect.right, rect.bottom)
+        else canvas.clipRect(rect.left, rect.top, reveal, rect.bottom)
+        drawPage(canvas, page, pageNumber, rect)
+        canvas.restore()
+
+        val shadowX = if (turnDirection < 0) reveal else reveal
+        val shadow = LinearGradient(
+            shadowX - 42f, 0f, shadowX + 42f, 0f,
+            intArrayOf(Color.TRANSPARENT, Color.argb(85, 0, 0, 0), Color.TRANSPARENT),
+            null, Shader.TileMode.CLAMP
+        )
+        paint.shader = shadow
+        canvas.drawRect(shadowX - 42f, rect.top, shadowX + 42f, rect.bottom, paint)
+        paint.shader = null
+    }
+
+    private fun drawPage(canvas: Canvas, page: MushafPage, pageNumber: Int, rect: RectF) {
+        val pageWidth = rect.width()
+        val pageHeight = rect.height()
+        val paper = if (dark) Color.rgb(29, 27, 23) else Color.rgb(247, 241, 222)
+        val ink = if (dark) Color.rgb(239, 232, 211) else Color.rgb(30, 28, 24)
+
         paint.style = Paint.Style.FILL
         paint.color = paper
         canvas.drawRect(rect, paint)
-
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = max(1f, pageWidth / 900f)
         paint.color = if (dark) Color.rgb(104, 97, 82) else Color.rgb(126, 112, 85)
@@ -58,19 +118,16 @@ class QcfMushafCanvas @JvmOverloads constructor(
 
         val qcf = fonts[pageNumber] ?: repo.qcfFont(pageNumber).also { fonts[pageNumber] = it }
         val uthmanic = repo.uthmanicFont()
-        val lineLeft = left + pageWidth * 0.075f
-        val lineRight = left + pageWidth * 0.925f
-        val lineTop = top + pageHeight * 0.105f
-        val lineBottom = top + pageHeight * 0.885f
+        val lineLeft = rect.left + pageWidth * 0.075f
+        val lineRight = rect.right - pageWidth * 0.075f
+        val lineTop = rect.top + pageHeight * 0.105f
+        val lineBottom = rect.top + pageHeight * 0.885f
         val lineHeight = (lineBottom - lineTop) / 15f
 
         for (line in page.lines) {
             if (line.number !in 1..15 || line.words.isEmpty()) continue
-
             var textSize = pageWidth * 0.057f
             val maxLineWidth = lineRight - lineLeft
-
-            // QCF is page-specific; measure each glyph run with the exact page font.
             paint.typeface = qcf
             paint.textSize = textSize
             var qcfWidth = line.words.filter { it.type != "end" }.sumOf {
@@ -85,21 +142,16 @@ class QcfMushafCanvas @JvmOverloads constructor(
                 }.toFloat()
             }
 
-            val baseline = run {
-                val fm = paint.fontMetrics
-                lineTop + (line.number - 0.5f) * lineHeight - (fm.ascent + fm.descent) / 2f
-            }
-
-            // API word order is canonical Mushaf order. Paint each word from the
-            // right edge toward the left so verse-end markers can use Uthmanic Hafs.
+            val fm = paint.fontMetrics
+            val baseline = lineTop + (line.number - 0.5f) * lineHeight - (fm.ascent + fm.descent) / 2f
             var x = (lineLeft + lineRight + qcfWidth) / 2f
+
             for (word in line.words) {
                 val runPaint = if (word.type == "end") {
                     paint.apply { typeface = uthmanic; textSize = textSize * 0.70f }
                 } else {
                     paint.apply { typeface = qcf; textSize = textSize }
                 }
-
                 val glyph = if (word.type == "end") word.text else word.glyph
                 val advance = runPaint.measureText(glyph)
                 x -= advance
@@ -112,7 +164,8 @@ class QcfMushafCanvas @JvmOverloads constructor(
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = pageWidth * 0.022f
         paint.color = if (dark) Color.rgb(180, 173, 153) else Color.rgb(105, 95, 76)
-        canvas.drawText(pageNumber.toString(), width / 2f, top + pageHeight * 0.965f, paint)
+        canvas.drawText(pageNumber.toString(), rect.centerX(), rect.top + pageHeight * 0.965f, paint)
+        paint.textAlign = Paint.Align.LEFT
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
