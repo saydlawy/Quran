@@ -102,8 +102,10 @@ class QuranAudioService : MediaSessionService() {
                     override fun onIsPlayingChanged(isPlaying: Boolean) {
                         _playbackState.value = if (isPlaying) {
                             AudioPlaybackState.PLAYING
-                        } else if (playbackState.value != AudioPlaybackState.COMPLETED) {
+                        } else if (_playbackState.value != AudioPlaybackState.COMPLETED) {
                             AudioPlaybackState.PAUSED
+                        } else {
+                            AudioPlaybackState.COMPLETED
                         }
                         persist()
                     }
