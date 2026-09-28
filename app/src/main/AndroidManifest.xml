@@ -5,6 +5,14 @@
         android:label="Ultimate Mushaf"
         android:allowBackup="false"
         android:supportsRtl="true">
+        <service
+            android:name=".audio.QuranAudioService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+            </intent-filter>
+        </service>
         <activity
             android:name=".MainActivity"
             android:exported="true"
