@@ -23,7 +23,7 @@ def fetch(url, attempts=6):
 def page(p):
     path=os.path.join(DATA,f"raw_{p}.json")
     if not os.path.exists(path) or os.path.getsize(path)<100:
-        url=f"{API}/verses/by_page/{p}?words=true&word_fields=code_v2,text_uthmani,text_qpc_hafs,line_number,page_number,location,verse_key&per_page=all"
+        url=f"{API}/verses/by_page/{p}?mushaf=1&words=true&word_fields=code_v2,text_uthmani,text_qpc_hafs,line_number,page_number,location,verse_key&per_page=all"
         open(path,"wb").write(fetch(url))
     return p
 
@@ -68,7 +68,7 @@ def main():
     for p in range(1,PAGES+1): os.remove(os.path.join(DATA,f"raw_{p}.json"))
     sha=hashlib.sha256(open(out,"rb").read()).hexdigest()
     with open(os.path.join(ASSETS,"MANIFEST.json"),"w",encoding="utf-8") as f:
-        json.dump({"schema":2,"mushaf_id":1,"pages":604,"lines_per_page":15,"ayahs":6236,"data_sha256":sha,"source":"Quran.com API v4 + QuranCDN QCF V2"},f,ensure_ascii=False,indent=2)
+        json.dump({"schema":2,"mushaf_id":1,"pages":604,"lines_per_page":15,"ayahs":6236,"data_sha256":sha,"source":"Quran Foundation/Quran.com content API v4 + Quran Foundation QCF V2 CDN"},f,ensure_ascii=False,indent=2)
     print("QCF V2 asset generation PASS",sha)
 
 if __name__=="__main__": main()
