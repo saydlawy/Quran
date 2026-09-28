@@ -60,7 +60,6 @@ private fun UltimateMushafApp(db: UltimateDatabase) {
                     contentAlignment = Alignment.Center
                 ) {
                     AndroidView(
-                        Modifier.fillMaxSize(),
                         factory = {
                             QcfMushafCanvas(it).apply {
                                 setPageChangedListener { newPage ->
@@ -69,6 +68,7 @@ private fun UltimateMushafApp(db: UltimateDatabase) {
                                 }
                             }
                         },
+                        modifier = Modifier.fillMaxSize(),
                         update = {
                             it.setPage(page)
                             it.setDark(dark)
