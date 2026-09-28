@@ -18,7 +18,8 @@ interface AudioUrlResolver {
 
 class LocalFirstAudioRepository(
     private val context: Context,
-    private val resolver: AudioUrlResolver
+    private val resolver: AudioUrlResolver,
+    private val reciterId: String = "default"
 ) : AudioRepository {
     override suspend fun resolve(segment: AudioSegment): String? {
         val local = localFile(segment.verseKey)
@@ -40,6 +41,6 @@ class LocalFirstAudioRepository(
 
     private fun localFile(verseKey: String): File {
         val safe = verseKey.replace(":", "_")
-        return File(context.filesDir, "audio/default/$safe.mp3")
+        return File(context.filesDir, "audio/$reciterId/$safe.mp3")
     }
 }
