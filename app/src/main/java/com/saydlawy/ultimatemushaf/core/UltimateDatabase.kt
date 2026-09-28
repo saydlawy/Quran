@@ -61,6 +61,39 @@ class UltimateDatabase(context: Context) :
         put("x", a.x); put("y", a.y); put("width", a.width); put("height", a.height); put("z_index", a.zIndex); put("created_at", a.createdAt)
     })
 
+    
+    fun addHifz(session: HifzSession): Long = writableDatabase.insert("hifz", null, ContentValues().apply {
+        put("name", session.name); put("start_verse", session.startVerse); put("end_verse", session.endVerse)
+        put("repetitions", session.repetitions); put("current_verse", session.currentVerse)
+        put("started_at", session.startedAt); put("completed", if (session.completed) 1 else 0)
+    })
+
+    fun addKhatma(plan: KhatmaPlan): Long = writableDatabase.insert("khatma", null, ContentValues().apply {
+        put("name", plan.name); put("start_page", plan.startPage); put("end_page", plan.endPage)
+        put("target_days", plan.targetDays); put("current_page", plan.currentPage)
+        put("created_at", plan.createdAt); put("completed", if (plan.completed) 1 else 0)
+    })
+
+    fun upsertDownload(item: DownloadItem) {
+        writableDatabase.insertWithOnConflict("downloads", null, ContentValues().apply {
+            put("id", item.id); put("url", item.url); put("destination", item.destination)
+            put("bytes", item.bytes); put("total_bytes", item.totalBytes); put("state", item.state)
+            put("sha256", item.sha256); put("pack_version", item.packVersion); put("license", item.license)
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    fun downloads(): List<DownloadItem> {
+        readableDatabase.query("downloads", null, null, null, null, null, "id ASC").use { c ->
+            val out = mutableListOf<DownloadItem>()
+            while (c.moveToNext()) out += DownloadItem(
+                id = c.getString(0), url = c.getString(1), destination = c.getString(2),
+                bytes = c.getLong(3), totalBytes = c.getLong(4), state = c.getString(5),
+                sha256 = c.getStringOrNull(6), packVersion = c.getString(7), license = c.getString(8)
+            )
+            return out
+        }
+    }
+
     fun annotations(page: Int): List<Annotation> {
         readableDatabase.query("annotations", null, "page=?", arrayOf(page.toString()), null, null, "z_index ASC,id ASC").use { c ->
             val out = mutableListOf<Annotation>()
