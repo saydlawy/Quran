@@ -56,6 +56,9 @@ class UltimateDatabase(context: Context) :
         }
     }
 
+    fun deleteBookmark(id: Long) { writableDatabase.delete("bookmarks", "id=?", arrayOf(id.toString())) }
+    fun deleteAnnotation(id: Long) { writableDatabase.delete("annotations", "id=?", arrayOf(id.toString())) }
+
     fun addAnnotation(a: Annotation): Long = writableDatabase.insert("annotations", null, ContentValues().apply {
         put("page", a.page); put("verse", a.verseKey); put("type", a.type); put("payload", a.payload)
         put("x", a.x); put("y", a.y); put("width", a.width); put("height", a.height); put("z_index", a.zIndex); put("created_at", a.createdAt)
