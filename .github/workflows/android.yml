@@ -1,4 +1,4 @@
-name: Android Build
+name: Android Production CI
 
 on:
   push:
@@ -12,6 +12,29 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Generate canonical QCF V2 offline assets
+        run: python3 tools/fetch_quran_assets.py
+      - name: Validate generated Quran assets
+        run: |
+          python3 - <<'PY'
+          import json, hashlib, os
+          root="app/src/main/assets/quran"
+          data=json.load(open(root+"/data/quran_qcf_v2.json",encoding="utf-8"))
+          assert data["mushaf_id"] == 1
+          assert len(data["pages"]) == 604
+          assert set(map(int,data["pages"].keys())) == set(range(1,605))
+          assert len(data["verses"]) == 6236
+          for p in range(1,605):
+              font=f"{root}/fonts/qcf/v2/p{p}.ttf"
+              assert os.path.getsize(font) > 1000, font
+              assert all(1 <= int(k) <= 15 for k in data["pages"][str(p)]["lines"])
+          sha=hashlib.sha256(open(root+"/data/quran_qcf_v2.json","rb").read()).hexdigest()
+          assert json.load(open(root+"/MANIFEST.json"))["data_sha256"] == sha
+          print("Quran asset validation PASS:", sha)
+          PY
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -19,10 +42,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.10.2"
-      - name: Build debug APK
+      - name: Assemble debug for CI verification
         run: gradle --no-daemon :app:assembleDebug
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ultimate-mushaf-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Verify APK contains the complete offline QCF V2 asset set
+        run: |
+          python3 - <<'PY'
+          import zipfile, glob
+          apks=glob.glob("app/build/outputs/apk/debug/*.apk")
+          assert apks
+          with zipfile.ZipFile(apks[0]) as z:
+              names=set(z.namelist())
+              for p in range(1,605):
+                  suffix=f"assets/quran/fonts/qcf/v2/p{p}.ttf"
+                  assert any(n.endswith(suffix) for n in names), suffix
+              assert any(n.endswith("assets/quran/data/quran_qcf_v2.json") for n in names)
+          print("APK offline asset verification PASS")
+          PY
