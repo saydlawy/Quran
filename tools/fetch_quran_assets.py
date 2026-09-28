@@ -6,6 +6,7 @@ ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS=os.path.join(ROOT,"app","src","main","assets","quran")
 DATA=os.path.join(ASSETS,"data"); FONTS=os.path.join(ASSETS,"fonts","qcf","v2")
 API="https://api.quran.com/api/v4"; FONT="https://verses.quran.foundation/fonts/quran/hafs/v2/ttf"
+UTHMANIC="https://verses.quran.foundation/fonts/quran/hafs/uthmanic_hafs/UthmanicHafs1Ver18.ttf"
 PAGES=604; WORKERS=10
 os.makedirs(DATA,exist_ok=True); os.makedirs(FONTS,exist_ok=True)
 
@@ -34,6 +35,10 @@ def font(p):
     return p
 
 def main():
+    os.makedirs(os.path.join(ASSETS,"fonts","uthmanic"),exist_ok=True)
+    upath=os.path.join(ASSETS,"fonts","uthmanic","UthmanicHafs1Ver18.ttf")
+    if not os.path.exists(upath) or os.path.getsize(upath)<1000:
+        open(upath,"wb").write(fetch(UTHMANIC))
     jobs=[]
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
         for p in range(1,PAGES+1):
@@ -68,7 +73,7 @@ def main():
     for p in range(1,PAGES+1): os.remove(os.path.join(DATA,f"raw_{p}.json"))
     sha=hashlib.sha256(open(out,"rb").read()).hexdigest()
     with open(os.path.join(ASSETS,"MANIFEST.json"),"w",encoding="utf-8") as f:
-        json.dump({"schema":2,"mushaf_id":1,"pages":604,"lines_per_page":15,"ayahs":6236,"data_sha256":sha,"source":"Quran Foundation/Quran.com content API v4 + Quran Foundation QCF V2 CDN"},f,ensure_ascii=False,indent=2)
+        json.dump({"schema":2,"mushaf_id":1,"pages":604,"lines_per_page":15,"ayahs":6236,"data_sha256":sha,"source":"Quran Foundation content API v4 + Quran Foundation QCF V2/Uthmanic Hafs fonts"},f,ensure_ascii=False,indent=2)
     print("QCF V2 asset generation PASS",sha)
 
 if __name__=="__main__": main()
