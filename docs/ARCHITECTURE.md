@@ -1,0 +1,1 @@
+Ultimate Mushaf production architecture: deterministic QCF V2 Mushaf ID 1, 604 pages, physical line grouping, page-specific fonts, offline packaged Quran core, secure server-only QF OAuth boundary, release gates for data integrity, renderer regression, audio, offline/recovery, security and accessibility.
